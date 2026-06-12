@@ -38,12 +38,15 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # Libera a ferramenta que posta os comentarios inline no PR.
-          # Sem isso o Claude analisa mas e bloqueado ao tentar comentar
-          # (permission_denials no run, "No buffered inline comments").
+          # A flag --comment faz o plugin POSTAR a revisao no PR. Sem ela o
+          # comando apenas imprime o resultado no terminal e para (passo 7 do
+          # comando: "If --comment was NOT provided, stop here. Do not post").
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment'
+          # Libera as ferramentas que o plugin usa para revisar e comentar
+          # (mesma lista do frontmatter allowed-tools do comando code-review).
+          # Sem isso o Claude e bloqueado ao tentar comentar (permission_denials).
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
