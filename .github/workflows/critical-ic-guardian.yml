@@ -1,0 +1,68 @@
+name: Critical IC Guardian
+
+# Guardiao de Item de Configuracao Critico.
+# Materializa a secao 2.6.3 do Jacto Drones OS v0.1: alerta inteligente
+# em itens de configuracao criticos (controle de voo, redundancia,
+# estabilidade). Roda APENAS quando um PR toca o firmware embarcado.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # So dispara em mudancas de codigo critico (firmware embarcado).
+    paths:
+      - 'firmware/**'
+
+jobs:
+  critical-ic-guardian:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Critical IC Guardian
+        id: critical-ic-guardian
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Prompt reforcado de analise de criticidade. Diferente do review
+          # comum, aqui o contexto e explicito: o PR toca um Item de
+          # Configuracao CRITICO (firmware embarcado de aeronave).
+          prompt: |
+            Voce e o "Guardiao de Item de Configuracao Critico" do projeto
+            Jacto Drones OS. Este PR
+            (${{ github.repository }}/pull/${{ github.event.pull_request.number }})
+            modifica arquivos dentro de `firmware/`, que e um Item de
+            Configuracao CRITICO: firmware embarcado de aeronave, abrangendo
+            controle de voo, redundancia e estabilidade.
+
+            Faca uma analise REFORCADA de criticidade, focada em:
+            - Seguranca (safety e security) da mudanca
+            - Limites de operacao (faixas, saturacao, overflow, unidades)
+            - Tratamento de erro e condicoes de falha
+            - Qualquer risco a integridade de voo
+
+            Use `gh pr diff ${{ github.event.pull_request.number }}` para ler
+            as mudancas e `gh pr view ${{ github.event.pull_request.number }}`
+            para o contexto do PR.
+
+            Ao final, POSTE sua analise como UM comentario no PR usando
+            `gh pr comment ${{ github.event.pull_request.number }} --body "..."`.
+            O comentario DEVE comecar com o cabecalho visivel:
+
+            ## :rotating_light: ALERTA: Item de Configuracao Critico modificado
+
+            E deve deixar EXPLICITO que mudancas nesta area exigem
+            reconhecimento humano formal antes do merge.
+          # Libera as ferramentas que o Claude usa para ler o diff e postar o
+          # comentario. Sem isso ele e bloqueado (permission_denials).
+          claude_args: |
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
