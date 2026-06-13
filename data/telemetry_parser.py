@@ -31,3 +31,10 @@ def process_log(lines):
         if detect_anomaly(record):
             anomalies.append(record)
     return anomalies
+
+
+def max_altitude(records):
+    """Retorna a altitude maxima de uma lista de registros."""
+    if not records:
+        return None
+    return max(r["altitude"] for r in records)
