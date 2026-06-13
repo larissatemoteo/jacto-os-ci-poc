@@ -1,6 +1,11 @@
 """Testes do parser de telemetria."""
 
-from telemetry_parser import parse_telemetry_line, detect_anomaly, process_log
+from telemetry_parser import (
+    parse_telemetry_line,
+    detect_anomaly,
+    process_log,
+    average_vibration,
+)
 
 
 def test_parse_valid_line():
@@ -32,10 +37,16 @@ def test_process_log():
     assert anomalies[0]["vibration"] == 7.5
 
 
+def test_average_vibration():
+    lines = ["1.0,100.0,2.0", "2.0,101.0,4.0", "3.0,102.0,6.0"]
+    assert average_vibration(lines) == 4.0
+
+
 if __name__ == "__main__":
     test_parse_valid_line()
     test_parse_invalid_line()
     test_detect_anomaly_true()
     test_detect_anomaly_false()
     test_process_log()
+    test_average_vibration()
     print("Todos os testes passaram.")
