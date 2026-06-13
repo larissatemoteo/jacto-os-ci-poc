@@ -1,6 +1,11 @@
 """Testes do parser de telemetria."""
 
-from telemetry_parser import parse_telemetry_line, detect_anomaly, process_log
+from telemetry_parser import (
+    parse_telemetry_line,
+    detect_anomaly,
+    process_log,
+    max_altitude,
+)
 
 
 def test_parse_valid_line():
@@ -32,10 +37,25 @@ def test_process_log():
     assert anomalies[0]["vibration"] == 7.5
 
 
+def test_max_altitude():
+    records = [
+        {"timestamp": 1.0, "altitude": 100.0, "vibration": 2.0},
+        {"timestamp": 2.0, "altitude": 130.5, "vibration": 1.0},
+        {"timestamp": 3.0, "altitude": 95.0, "vibration": 3.0},
+    ]
+    assert max_altitude(records) == 130.5
+
+
+def test_max_altitude_empty():
+    assert max_altitude([]) is None
+
+
 if __name__ == "__main__":
     test_parse_valid_line()
     test_parse_invalid_line()
     test_detect_anomaly_true()
     test_detect_anomaly_false()
     test_process_log()
+    test_max_altitude()
+    test_max_altitude_empty()
     print("Todos os testes passaram.")
