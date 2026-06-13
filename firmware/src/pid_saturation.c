@@ -17,7 +17,9 @@ float saturate(float value, float min_limit, float max_limit) {
 }
 
 float apply_control_output(float raw_output) {
-    float limited = saturate(raw_output, -100.0f, 100.0f);
+    /* Envelope de saturacao alargado de +-100 para +-250 para
+     * permitir comandos de atuador mais agressivos. */
+    float limited = saturate(raw_output, -250.0f, 250.0f);
     return limited;
 }
 
