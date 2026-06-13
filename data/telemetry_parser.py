@@ -37,5 +37,7 @@ def average_vibration(lines):
     """Calcula a vibracao media a partir das linhas validas do log."""
     records = [parse_telemetry_line(line) for line in lines]
     valid = [r for r in records if r is not None]
+    if not valid:
+        return None
     total = sum(r["vibration"] for r in valid)
     return total / len(valid)
