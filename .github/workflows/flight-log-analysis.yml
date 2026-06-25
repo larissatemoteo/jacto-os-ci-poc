@@ -75,12 +75,14 @@ jobs:
             investigacao. Nao invente dados que nao estao no resumo. Seja honesto: se
             o voo foi limpo, diga que foi limpo.
 
-            Tarefas operacionais (alem de escrever o relatorio):
-            1. Salve o relatorio COMPLETO no arquivo
-               `flight-log-analysis/relatorio-voo-ci.md` usando a ferramenta Write.
-               (Use exatamente esse nome, com o sufixo `-ci`: ele identifica o
-               relatorio gerado por esta esteira e nao deve ser confundido com
-               nenhum relatorio ja existente no repositorio.)
+            Tarefas operacionais OBRIGATORIAS (o relatorio NAO deve ser apenas
+            impresso na sua resposta; ele PRECISA virar um arquivo):
+            1. Apos produzir a analise, salve o relatorio completo usando a
+               ferramenta Write no caminho exato:
+               flight-log-analysis/relatorio-voo-ci.md
+               Use exatamente esse nome de arquivo, nesse caminho. Nao use outro
+               nome (NAO use relatorio-voo.md nem qualquer variacao). Este passo e
+               obrigatorio: se voce nao gravar esse arquivo, a tarefa falha.
             2. Este evento e `${{ github.event_name }}` e o numero do PR (vazio se
                nao houver) e "${{ github.event.pull_request.number }}". Se esse numero
                NAO estiver vazio, poste o relatorio como UM unico comentario no PR
@@ -102,6 +104,8 @@ jobs:
       #    silenciosa da IA passaria despercebida.
       - name: Verify AI report was generated
         run: |
+          echo "----- conteudo de flight-log-analysis/ -----"
+          ls -la flight-log-analysis/
           if [ ! -s flight-log-analysis/relatorio-voo-ci.md ]; then
             echo "::error::A IA nao gerou flight-log-analysis/relatorio-voo-ci.md (arquivo ausente ou vazio). Falha na etapa de analise por IA."
             exit 1
