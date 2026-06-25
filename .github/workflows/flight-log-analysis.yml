@@ -52,24 +52,18 @@ jobs:
           echo "----- resumo.json gerado -----"
           cat flight-log-analysis/resumo.json
 
-      # 3) Injeta o conteudo do resumo.json em uma variavel de ambiente
-      #    multilinha, para passa-lo deterministicamente dentro do prompt da
-      #    IA (ver explicacao da abordagem no PR/handoff).
-      - name: Load summary into env
-        run: |
-          {
-            echo 'RESUMO_JSON<<RESUMO_EOF'
-            cat flight-log-analysis/resumo.json
-            echo 'RESUMO_EOF'
-          } >> "$GITHUB_ENV"
-
-      # 4) IA gera o relatorio de analise de voo.
+      # 3) IA gera o relatorio de analise de voo. O resumo.json ja esta no
+      #    working directory (passo anterior); o Claude o le com a tool Read,
+      #    sem injecao em variavel de ambiente.
       - name: Analyze flight log with Claude
         id: flight-analysis
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
+            Leia o arquivo flight-log-analysis/resumo.json no diretorio do
+            repositorio (use a ferramenta Read) e analise o voo descrito nele.
+
             Voce e um analista senior de telemetria de voo de drones agricolas da
             Jacto Drones, analisando um voo executado em simulacao PX4-SITL. Leia o
             resumo estruturado do log de voo e produza um relatorio em portugues com
@@ -81,34 +75,45 @@ jobs:
             investigacao. Nao invente dados que nao estao no resumo. Seja honesto: se
             o voo foi limpo, diga que foi limpo.
 
-            O resumo estruturado do log de voo (resumo.json, gerado pela esteira de CI
-            no passo anterior deste job) e exatamente este:
-
-            ```json
-            ${{ env.RESUMO_JSON }}
-            ```
-
             Tarefas operacionais (alem de escrever o relatorio):
             1. Salve o relatorio COMPLETO no arquivo
-               `flight-log-analysis/relatorio-voo.md` usando a ferramenta Write.
+               `flight-log-analysis/relatorio-voo-ci.md` usando a ferramenta Write.
+               (Use exatamente esse nome, com o sufixo `-ci`: ele identifica o
+               relatorio gerado por esta esteira e nao deve ser confundido com
+               nenhum relatorio ja existente no repositorio.)
             2. Este evento e `${{ github.event_name }}` e o numero do PR (vazio se
                nao houver) e "${{ github.event.pull_request.number }}". Se esse numero
                NAO estiver vazio, poste o relatorio como UM unico comentario no PR
                executando exatamente:
-               `gh pr comment ${{ github.event.pull_request.number }} --body-file flight-log-analysis/relatorio-voo.md`
+               `gh pr comment ${{ github.event.pull_request.number }} --body-file flight-log-analysis/relatorio-voo-ci.md`
                Se o numero estiver vazio (ex.: execucao manual via workflow_dispatch),
                NAO tente comentar; apenas salve o arquivo do relatorio.
-          # Libera so as ferramentas necessarias: Write para salvar o
-          # relatorio, Read como reforco (poder reler o resumo.json do working
-          # directory) e o gh pr comment para postar no PR. Sem isso o Claude e
-          # bloqueado (permission_denials).
+          # Libera so as ferramentas necessarias: Read para ler o resumo.json
+          # do working directory, Write para salvar o relatorio e o gh pr
+          # comment para postar no PR. Sem isso o Claude e bloqueado
+          # (permission_denials).
           claude_args: |
-            --allowedTools "Write,Read,Bash(gh pr comment:*)"
+            --allowedTools "Read,Write,Bash(gh pr comment:*)"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
-      # 5) Disponibiliza o resumo e o relatorio como artefatos do workflow
-      #    (complementa o comentario no PR e cobre o caso workflow_dispatch).
+      # 4) Verificacao anti-falso-sucesso: o job so segue se a IA realmente
+      #    gerou o relatorio-voo-ci.md neste run. Sem isso, uma falha
+      #    silenciosa da IA passaria despercebida.
+      - name: Verify AI report was generated
+        run: |
+          if [ ! -s flight-log-analysis/relatorio-voo-ci.md ]; then
+            echo "::error::A IA nao gerou flight-log-analysis/relatorio-voo-ci.md (arquivo ausente ou vazio). Falha na etapa de analise por IA."
+            exit 1
+          fi
+          echo "OK: relatorio-voo-ci.md gerado pela IA neste run."
+          echo "----- previa do relatorio -----"
+          head -n 20 flight-log-analysis/relatorio-voo-ci.md
+
+      # 5) Disponibiliza o resumo e o relatorio (gerado agora) como artefatos
+      #    do workflow. Complementa o comentario no PR e cobre o caso
+      #    workflow_dispatch. A presenca do relatorio-voo-ci.md no artefato
+      #    confirma que a IA rodou de verdade nesta execucao.
       - name: Upload flight analysis artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -116,5 +121,5 @@ jobs:
           name: flight-log-analysis-report
           path: |
             flight-log-analysis/resumo.json
-            flight-log-analysis/relatorio-voo.md
+            flight-log-analysis/relatorio-voo-ci.md
           if-no-files-found: warn
