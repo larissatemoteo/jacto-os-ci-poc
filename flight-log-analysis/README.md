@@ -71,3 +71,5 @@ anexando o relatorio aos artefatos do pipeline.
 Codigo desenvolvido com log sintetico de simulacao PX4-SITL. Nao processa
 dados reais ou proprietarios da Jacto Drones, em conformidade com as
 restricoes do TAPI do projeto.
+<!-- teste de disparo do workflow de analise de log -->
+teste de disparo do workflow
