@@ -1,0 +1,129 @@
+name: Flight Log Analysis (IA)
+
+# Terceiro caso de uso de IA da PoC (alem do Claude Code Review e do
+# Critical IC Guardian): ANALISE DE LOG DE VOO POR IA como etapa automatica
+# de CI.
+#
+# Pipeline: extrai um resumo JSON de um log de voo ULog (PX4-SITL) com o
+# extract_flight_summary.py e usa o Claude para transformar esse resumo em
+# um relatorio de analise de voo em quatro secoes. O relatorio sai como
+# artefato do workflow e, em PRs, como comentario no PR.
+on:
+  # Demonstracao controlada: botao manual no GitHub.
+  workflow_dispatch:
+  # Integracao a esteira: so dispara quando o PR toca a pasta da analise.
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'flight-log-analysis/**'
+
+jobs:
+  flight-log-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read           # checkout do codigo
+      pull-requests: write      # postar o relatorio como comentario no PR
+      id-token: write           # mesmo padrao dos outros workflows da action
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 1) Python + dependencias do extrator (apenas o necessario para o
+      #    parser ULog; a action de IA nao usa o SDK anthropic do
+      #    requirements.txt, por isso instalamos so pyulog e numpy).
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install extractor dependencies
+        run: python -m pip install --upgrade pip pyulog numpy
+
+      # 2) Roda o extrator sobre o log de exemplo e gera o resumo.json no
+      #    working directory do job.
+      - name: Extract flight summary
+        run: |
+          python flight-log-analysis/extract_flight_summary.py \
+            flight-log-analysis/sample-logs/sitl_takeoff_rtl_2026-06-13.ulg \
+            --out flight-log-analysis/resumo.json
+          echo "----- resumo.json gerado -----"
+          cat flight-log-analysis/resumo.json
+
+      # 3) IA gera o relatorio de analise de voo. O resumo.json ja esta no
+      #    working directory (passo anterior); o Claude o le com a tool Read,
+      #    sem injecao em variavel de ambiente.
+      - name: Analyze flight log with Claude
+        id: flight-analysis
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Leia o arquivo flight-log-analysis/resumo.json no diretorio do
+            repositorio (use a ferramenta Read) e analise o voo descrito nele.
+
+            Voce e um analista senior de telemetria de voo de drones agricolas da
+            Jacto Drones, analisando um voo executado em simulacao PX4-SITL. Leia o
+            resumo estruturado do log de voo e produza um relatorio em portugues com
+            quatro secoes: (1) PERFIL DO VOO: o que aconteceu, com tempos e valores
+            concretos; (2) SAUDE DOS SUBSISTEMAS: bateria, GPS, vibracao e atitude,
+            dizendo se cada um esta em faixa nominal; (3) PONTOS DE ATENCAO: interprete
+            os pontos de atencao do resumo, e se o voo foi limpo, diga isso com
+            clareza; (4) VEREDITO: uma linha sobre se o voo foi nominal ou requer
+            investigacao. Nao invente dados que nao estao no resumo. Seja honesto: se
+            o voo foi limpo, diga que foi limpo.
+
+            Tarefas operacionais OBRIGATORIAS (o relatorio NAO deve ser apenas
+            impresso na sua resposta; ele PRECISA virar um arquivo):
+            1. Apos produzir a analise, salve o relatorio completo usando a
+               ferramenta Write no caminho exato:
+               flight-log-analysis/relatorio-voo-ci.md
+               Use exatamente esse nome de arquivo, nesse caminho. Nao use outro
+               nome (NAO use relatorio-voo.md nem qualquer variacao). Este passo e
+               obrigatorio: se voce nao gravar esse arquivo, a tarefa falha.
+            2. Este evento e `${{ github.event_name }}` e o numero do PR (vazio se
+               nao houver) e "${{ github.event.pull_request.number }}". Se esse numero
+               NAO estiver vazio, poste o relatorio como UM unico comentario no PR
+               executando exatamente:
+               `gh pr comment ${{ github.event.pull_request.number }} --body-file flight-log-analysis/relatorio-voo-ci.md`
+               Se o numero estiver vazio (ex.: execucao manual via workflow_dispatch),
+               NAO tente comentar; apenas salve o arquivo do relatorio.
+          # Libera so as ferramentas necessarias: Read para ler o resumo.json
+          # do working directory, Write para salvar o relatorio e o gh pr
+          # comment para postar no PR. Sem isso o Claude e bloqueado
+          # (permission_denials).
+          claude_args: |
+            --allowedTools "Read,Write,Bash(gh pr comment:*)"
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+
+      # 4) Verificacao anti-falso-sucesso: o job so segue se a IA realmente
+      #    gerou o relatorio-voo-ci.md neste run. Sem isso, uma falha
+      #    silenciosa da IA passaria despercebida.
+      - name: Verify AI report was generated
+        run: |
+          echo "----- conteudo de flight-log-analysis/ -----"
+          ls -la flight-log-analysis/
+          if [ ! -s flight-log-analysis/relatorio-voo-ci.md ]; then
+            echo "::error::A IA nao gerou flight-log-analysis/relatorio-voo-ci.md (arquivo ausente ou vazio). Falha na etapa de analise por IA."
+            exit 1
+          fi
+          echo "OK: relatorio-voo-ci.md gerado pela IA neste run."
+          echo "----- previa do relatorio -----"
+          head -n 20 flight-log-analysis/relatorio-voo-ci.md
+
+      # 5) Disponibiliza o resumo e o relatorio (gerado agora) como artefatos
+      #    do workflow. Complementa o comentario no PR e cobre o caso
+      #    workflow_dispatch. A presenca do relatorio-voo-ci.md no artefato
+      #    confirma que a IA rodou de verdade nesta execucao.
+      - name: Upload flight analysis artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-log-analysis-report
+          path: |
+            flight-log-analysis/resumo.json
+            flight-log-analysis/relatorio-voo-ci.md
+          if-no-files-found: warn

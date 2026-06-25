@@ -1,0 +1,63 @@
+{
+  "arquivo": "sitl_takeoff_rtl_2026-06-13.ulg",
+  "duracao_s": 106.0,
+  "sw_version": "17956928",
+  "dropouts": 0,
+  "fases_de_voo": [
+    {
+      "t_s": 0.2,
+      "estado": "AUTO_LOITER"
+    },
+    {
+      "t_s": 61.3,
+      "estado": "AUTO_TAKEOFF"
+    },
+    {
+      "t_s": 67.7,
+      "estado": "AUTO_LOITER"
+    },
+    {
+      "t_s": 92.1,
+      "estado": "AUTO_RTL"
+    },
+    {
+      "t_s": 105.0,
+      "estado": "AUTO_LOITER"
+    }
+  ],
+  "altitude": {
+    "max_m": 2.8,
+    "min_m": -0.25,
+    "media_m": 0.66,
+    "inicial_m": 0.0,
+    "final_m": 0.45
+  },
+  "velocidade_vertical": {
+    "max_subida_m_s": 0.93,
+    "max_descida_m_s": 0.75
+  },
+  "atitude": {
+    "roll_max_abs_deg": 9.2,
+    "pitch_max_abs_deg": 4.3
+  },
+  "vibracao": {
+    "accel_magnitude_media_m_s2": 9.84,
+    "accel_magnitude_desvio_padrao": 0.69,
+    "clipping_accel_eventos": 0
+  },
+  "bateria": {
+    "remaining_inicial_pct": 98.9,
+    "remaining_final_pct": 81.0,
+    "consumo_pct": 17.9,
+    "voltagem_inicial_v": 16.2,
+    "voltagem_final_v": 16.2
+  },
+  "gps": {
+    "satelites_min": 10,
+    "satelites_max": 10,
+    "satelites_medio": 10.0
+  },
+  "pontos_de_atencao": [
+    "Nenhum ponto de atencao automatico detectado; metricas dentro de faixas tipicas para voo nominal."
+  ]
+}
