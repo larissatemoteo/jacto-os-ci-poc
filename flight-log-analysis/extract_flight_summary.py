@@ -49,6 +49,7 @@ def extract(path):
         "altitude": {},
         "velocidade_vertical": {},
         "atitude": {},
+        "distancia_horizontal": {},
         "vibracao": {},
         "bateria": {},
         "gps": {},
@@ -99,6 +100,21 @@ def extract(path):
             summary["pontos_de_atencao"].append(
                 f"Altitude final de {alt[-1]:.2f} m acima da referencia; verificar deteccao de pouso."
             )
+
+        # --- Distancia horizontal percorrida (a partir de x,y NED) ---
+        x = lp.data["x"][valid]
+        y = lp.data["y"][valid]
+        # afastamento maximo do ponto de origem (decolagem na origem do frame local)
+        dist_origem = np.sqrt(x**2 + y**2)
+        # comprimento total do trajeto: soma dos deslocamentos amostra a amostra
+        dx = np.diff(x)
+        dy = np.diff(y)
+        comprimento_trajeto = float(np.sqrt(dx**2 + dy**2).sum())
+        summary["distancia_horizontal"] = {
+            "afastamento_max_m": round(float(dist_origem.max()), 2),
+            "afastamento_final_m": round(float(dist_origem[-1]), 2),
+            "comprimento_trajeto_m": round(comprimento_trajeto, 2),
+        }
     except Exception as e:
         summary["altitude"] = f"indisponivel: {e}"
 
