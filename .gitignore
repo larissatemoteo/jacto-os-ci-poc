@@ -1,18 +1,13 @@
-# macOS
-.DS_Store
-
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-.pytest_cache/
 .venv/
 venv/
 
-# C build artifacts
-*.o
-*.obj
-*.out
-*.exe
-a.out
-firmware/**/build/
+# Saidas geradas
+flight-log-analysis/resumo.json
+flight-log-analysis/relatorio-voo-ci.md
+
+# Sistema
+.DS_Store
